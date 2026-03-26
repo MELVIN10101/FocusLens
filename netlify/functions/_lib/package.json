@@ -1,0 +1,10 @@
+{
+    "name": "focuslens-functions",
+    "version": "1.0.0",
+    "description": "FocusLens Netlify serverless functions",
+    "main": "index.js",
+    "dependencies": {
+        "mongoose": "^8.2.4",
+        "zod": "^3.22.4"
+    }
+}

@@ -1,0 +1,4 @@
+# FocusLens – .gitignore
+.env
+node_modules/
+.netlify/
