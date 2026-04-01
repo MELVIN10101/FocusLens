@@ -72,7 +72,7 @@
       position: relative;
       z-index: 1;
       display: grid;
-      grid-template-columns: 1fr 380px;
+      grid-template-columns: 220px 1fr 380px;
       grid-template-rows: auto 1fr;
       min-height: 100vh;
     }
@@ -90,6 +90,149 @@
       position: sticky;
       top: 0;
       z-index: 100;
+    }
+
+    /* ── Left Side Navigation ───────────────────────────── */
+    .sidenav {
+      background: var(--panel);
+      border-right: 1px solid var(--border);
+      position: sticky;
+      top: 57px;
+      height: calc(100vh - 57px);
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      z-index: 10;
+    }
+
+    .sidenav::-webkit-scrollbar {
+      width: 3px;
+    }
+
+    .sidenav::-webkit-scrollbar-thumb {
+      background: var(--border2);
+    }
+
+    .sidenav-header {
+      padding: 16px 14px 10px;
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .sidenav-section {
+      padding: 10px 8px 4px;
+      font-size: 8px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding-left: 14px;
+    }
+
+    .sitenav-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      cursor: pointer;
+      border-left: 2px solid transparent;
+      transition: all 0.15s;
+      border-radius: 0 6px 6px 0;
+      margin: 1px 6px 1px 0;
+      text-decoration: none;
+      color: var(--dim);
+      font-size: 11px;
+      font-family: var(--font-mono);
+    }
+
+    .sitenav-item:hover {
+      background: var(--card);
+      color: var(--text);
+      border-left-color: var(--border2);
+    }
+
+    .sitenav-item.active {
+      background: #9b72ff15;
+      color: var(--purple);
+      border-left-color: var(--purple);
+      font-weight: 600;
+    }
+
+    .sitenav-icon {
+      font-size: 13px;
+      flex-shrink: 0;
+      width: 16px;
+      text-align: center;
+    }
+
+    .sitenav-label {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .drift-badge {
+      flex-shrink: 0;
+      font-size: 9px;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 3px;
+      background: var(--card);
+      border: 1px solid var(--border2);
+      font-family: var(--font-mono);
+      min-width: 26px;
+      text-align: center;
+    }
+
+    .sidenav-footer {
+      margin-top: auto;
+      padding: 12px 14px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 10px;
+      color: var(--muted);
+    }
+
+    .conn-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--muted);
+      flex-shrink: 0;
+      transition: background 0.3s;
+    }
+
+    .conn-dot.online {
+      background: var(--green);
+      box-shadow: 0 0 6px var(--green);
+    }
+
+    .conn-dot.offline {
+      background: var(--red);
+      box-shadow: 0 0 6px var(--red);
+    }
+
+    .sitenav-divider {
+      height: 1px;
+      background: var(--border);
+      margin: 6px 14px;
+    }
+
+    .sitenav-loading {
+      padding: 10px 14px;
+      font-size: 10px;
+      color: var(--muted);
+      font-style: italic;
     }
 
     .logo {
@@ -180,7 +323,7 @@
       gap: 24px;
     }
 
-    /* ── Sidebar ────────────────────────────────────────── */
+    /* ── Right Sidebar ──────────────────────────────────── */
     .sidebar {
       background: var(--panel);
       border-left: 1px solid var(--border);
@@ -217,6 +360,14 @@
       letter-spacing: 2px;
       text-transform: uppercase;
       color: var(--muted);
+    }
+
+    .meter-sublabel {
+      font-size: 9px;
+      color: var(--dim);
+      margin-top: 2px;
+      text-align: center;
+      word-break: break-all;
     }
 
     .meter-ring {
@@ -761,11 +912,40 @@
       </div>
     </header>
 
+    <!-- ── Left Side Navigation ── -->
+    <nav class="sidenav">
+      <div class="sidenav-header">
+        <span>🌐</span> Sites
+      </div>
+
+      <div style="padding: 6px 0;">
+        <div class="sidenav-section">Overview</div>
+        <div class="sitenav-item active" id="nav-all" onclick="selectSite(null)">
+          <span class="sitenav-icon">📊</span>
+          <span class="sitenav-label">All Sites</span>
+        </div>
+      </div>
+
+      <div class="sitenav-divider"></div>
+
+      <div style="padding: 6px 0; flex: 1;">
+        <div class="sidenav-section">Tracked Sites</div>
+        <div id="sitenav-list">
+          <div class="sitenav-loading">Loading…</div>
+        </div>
+      </div>
+
+      <div class="sidenav-footer">
+        <div class="conn-dot" id="conn-dot"></div>
+        <span id="conn-label">Connecting…</span>
+      </div>
+    </nav>
+
     <!-- ── Main canvas ── -->
     <main class="canvas">
 
       <!-- Stats row -->
-      <div>
+      <!-- <div>
         <div class="section-title">Signal Counters</div>
         <div style="margin-top:14px"></div>
         <div class="card-row">
@@ -810,123 +990,85 @@
             <div class="card-desc">Suspicious linear patterns</div>
           </div>
         </div>
-      </div>
+      </div> -->
 
-      <!-- Scroll chart -->
-      <div>
-        <div class="section-title">Scroll Speed History</div>
+
+      <!-- ── Analytics Dashboard ── -->
+      <div id="analytics-section">
+        <div class="section-title">Analytics</div>
         <div style="margin-top:14px"></div>
-        <div class="chart-wrap">
-          <div class="chart-title">Recent 30 scroll events · px/s</div>
-          <div class="chart-bars" id="scroll-chart"></div>
+
+        <!-- Active site heading -->
+        <div style="margin-bottom:16px;display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <div
+              style="font-size:9px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:4px">
+              Viewing</div>
+            <div style="font-size:14px;font-weight:700;color:var(--text);font-family:var(--font-head)"
+              id="an-site-heading">All Sites</div>
+          </div>
+          <span id="analytics-status" style="font-size:10px;color:var(--muted)"></span>
         </div>
+
+        <!-- Summary stat cards -->
+        <div class="card-row" style="margin-bottom:16px">
+          <div class="card">
+            <div class="card-label">Avg Drift Score</div>
+            <div class="card-value" id="an-avgdrift" style="color:var(--green)">—</div>
+            <div class="card-desc">Across all sessions</div>
+          </div>
+          <div class="card">
+            <div class="card-label">Sessions Recorded</div>
+            <div class="card-value" id="an-count">—</div>
+            <div class="card-desc">Total snapshots saved</div>
+          </div>
+          <div class="card">
+            <div class="card-label">Avg Idle Time</div>
+            <div class="card-value" id="an-idle">—</div>
+            <div class="card-desc">Seconds per session</div>
+          </div>
+          <div class="card">
+            <div class="card-label">Avg Tab Switches</div>
+            <div class="card-value" id="an-tabs">—</div>
+            <div class="card-desc">Per session</div>
+          </div>
+          <div class="card">
+            <div class="card-label">Avg Rapid Scrolls</div>
+            <div class="card-value" id="an-scrolls">—</div>
+            <div class="card-desc">Per session</div>
+          </div>
+          <div class="card">
+            <div class="card-label">Last Seen</div>
+            <div class="card-value" id="an-lastseen" style="font-size:13px">—</div>
+            <div class="card-desc" id="an-site-label">—</div>
+          </div>
+        </div>
+
+        <!-- Charts row -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 320px;gap:12px">
+          <div class="card">
+            <div class="card-label">Drift Over Time</div>
+            <canvas id="driftChart" height="140"></canvas>
+          </div>
+          <div class="card">
+            <div class="card-label">Avg Drift by Site</div>
+            <canvas id="hostChart" height="140"></canvas>
+          </div>
+          <div class="card">
+            <div class="card-label">Drift Distribution</div>
+            <canvas id="distChart" height="140"></canvas>
+          </div>
+        </div>
+
+        <!-- No data notice -->
+        <div id="an-empty" style="display:none;text-align:center;padding:32px;color:var(--muted);font-size:12px">
+          No data yet for this site. Browse a page while the extension is active.
+        </div>
+
       </div>
 
-      <!-- Mouse trail heatmap -->
-      <div>
-        <div class="section-title">Mouse Trail</div>
-        <div style="margin-top:14px"></div>
-        <div class="heatmap-wrap">
-          <div class="chart-title">Last 200 mouse positions (relative to panel)</div>
-          <canvas class="heatmap-canvas" id="mouse-canvas"></canvas>
-        </div>
-      </div>
-
-      <!-- Test controls -->
-      <div>
-        <div class="section-title">Manual Test Controls</div>
-        <div style="margin-top:14px"></div>
-        <div class="controls-grid">
-
-          <div class="ctrl-card">
-            <div class="ctrl-title">🔄 Tab Focus</div>
-            <button class="btn" onclick="simulateTabSwitch()">Simulate Tab Switch</button>
-            <button class="btn" onclick="window.open('about:blank','_blank').close()">Open + Close Tab</button>
-          </div>
-
-          <div class="ctrl-card">
-            <div class="ctrl-title">💤 Idle</div>
-            <button class="btn" onclick="testIdle()">Force Idle Flag (instant)</button>
-            <button class="btn" id="idle-status" disabled style="cursor:default;opacity:0.4">Waiting for natural
-              idle…</button>
-          </div>
-
-          <div class="ctrl-card">
-            <div class="ctrl-title">📋 Copy / Paste</div>
-            <button class="btn" onclick="doCopy()">Copy Sample Text</button>
-            <button class="btn" onclick="focusPaste()">Focus Paste Area ↓</button>
-          </div>
-
-          <div class="ctrl-card">
-            <div class="ctrl-title">⚡ Rapid Scroll</div>
-            <button class="btn primary" onclick="triggerRapidScroll()">Trigger Rapid Scroll</button>
-            <button class="btn" onclick="window.scrollTo({top:0,behavior:'smooth'})">Scroll to Top</button>
-          </div>
-
-          <div class="ctrl-card">
-            <div class="ctrl-title">🤖 Bot Pattern</div>
-            <button class="btn danger" onclick="simulateBotMouse()">Simulate Linear Mouse</button>
-            <button class="btn" onclick="resetBotFlag()">Reset Bot Flags</button>
-          </div>
-
-          <div class="ctrl-card">
-            <div class="ctrl-title">🎯 Click Tests</div>
-            <button class="btn" onclick="fireClicks(5)">Fire 5 Clicks</button>
-            <button class="btn" onclick="fireClicks(20)">Fire 20 Clicks</button>
-          </div>
-
-        </div>
-      </div>
-
-      <!-- Paste area -->
-      <div>
-        <div class="section-title">Paste Test Area</div>
-        <div style="margin-top:14px"></div>
-        <div class="card" style="gap:10px">
-          <div class="card-label">Paste anything here to register a paste event</div>
-          <textarea id="paste-area"
-            style="width:100%;height:80px;background:var(--panel);border:1px solid var(--border2);border-radius:6px;padding:10px;color:var(--text);font-family:var(--font-mono);font-size:12px;resize:none;outline:none;"
-            placeholder="Click 'Focus Paste Area' then Ctrl+V …"></textarea>
-        </div>
-      </div>
-
-      <!-- Scroll content (so the page is scrollable) -->
-      <div>
-        <div class="section-title">Scroll Content (test area)</div>
-        <div style="margin-top:14px"></div>
-        <div class="scroll-content">
-          <h3>Scroll through this content to generate scroll events</h3>
-          <p>Attention drift during inline learning is a multi-dimensional phenomenon. Unlike traditional classroom
-            settings where physical presence creates a social contract of engagement, asynchronous digital learning
-            environments remove these external accountability mechanisms entirely.</p>
-          <p>Behavioural signals observable through browser APIs provide a rich proxy for cognitive engagement.
-            Tab-switching frequency correlates strongly with task-switching costs described in cognitive load theory.
-            Each switch introduces a re-engagement penalty of 15–30 seconds before deep focus resumes.</p>
-          <p>Mouse movement patterns carry surprising signal quality. Genuine reading behaviour produces
-            micro-saccade-like mouse movements — small, irregular corrections as the reader tracks text. Passive
-            consumption, by contrast, produces stillness or slow, pendulum-like drift.</p>
-          <p>Scroll velocity is perhaps the most underutilised signal. A learner actively processing content scrolls
-            slowly and unevenly, pausing to re-read. A disengaged learner skims — producing burst-scroll patterns with
-            sharp velocity spikes followed by long pauses.</p>
-          <p>Copy-paste events, while simple, are strong indicators of intent shift: the learner has moved from
-            consumption to extraction or communication — potentially opening a chat window or email to share or ask
-            about content.</p>
-          <p>The synthesis of these signals into a drift score must account for baseline variation. A naturally fast
-            reader will exhibit higher scroll speeds than a slow one without being any less engaged. Personalised
-            baselines, built over several sessions, are essential for reducing false positives.</p>
-          <p>Early interventions — gentle nudges rather than disruptive alerts — have shown efficacy in pilot studies. A
-            subtle colour change in the browser chrome, or a soft audio cue, can re-anchor attention without breaking
-            flow entirely.</p>
-          <p>The ethical dimension of attention monitoring in learning contexts cannot be overstated. Transparency about
-            what is tracked, learner agency over their own data, and clear benefit-sharing (the data serves the learner,
-            not the institution) are prerequisites for adoption.</p>
-          <p>Future directions include multimodal fusion: combining browser behaviour with webcam gaze estimation and
-            audio-based distraction detection to create a genuinely holistic picture of learner presence.</p>
-          <div
-            style="height:200px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:11px;">
-            — end of scroll test content —</div>
-        </div>
-      </div>
+      <!-- bottom spacer -->
+      <div style="height:40px"></div>
 
     </main>
 
@@ -936,6 +1078,7 @@
       <!-- Drift meter -->
       <div class="drift-meter">
         <div class="meter-label">Drift Score</div>
+        <div class="meter-sublabel" id="highest-site-label">Loading...</div>
         <div class="meter-ring">
           <svg width="130" height="130" viewBox="0 0 130 130">
             <circle class="ring-track" cx="65" cy="65" r="50" />
@@ -1043,67 +1186,11 @@
 
   </div><!-- /layout -->
 
-  <script>
-    // ============================================================
-    // FocusLens Testbed · Signal Engine
-    // ============================================================
 
-    const CIRCUMFERENCE = 2 * Math.PI * 50; // r=50
+  <script src="dashboard-signals.js"></script>
+  <script src="chart.min.js"></script>
+  <script src="dashboard-analytics.js"></script>
 
-    // ── State ────────────────────────────────────────────────────
-    const S = {
-      sessionStart: Date.now(),
-      tabSwitches: 0,
-      focusLossDurations: [],
-      lastBlurTime: null,
-      isTabFocused: true,
-
-      lastMouseMove: Date.now(),
-      idlePeriods: [],
-      idleStart: null,
-      isIdle: false,
-      IDLE_THRESHOLD: 10000,
-      mouseMoveCount: 0,
-      mousePositions: [],
-
-      scrollSpeeds: [],
-      lastScrollY: window.scrollY,
-      lastScrollTime: Date.now(),
-      rapidScrollCount: 0,
-      RAPID_THRESHOLD: 3000,
-      lastScrollSpeed: 0,
-
-      clicks: 0,
-      lastClickTarget: '—',
-
-      copyCount: 0,
-      pasteCount: 0,
-      lastClipboard: '—',
-
-      suspiciousPatterns: 0,
-      linearCount: 0,
-
-      botSimInterval: null,
-    };
-
-    // ── Helpers ──────────────────────────────────────────────────
-    function now() { return Date.now(); }
-    function elapsed() { return now() - S.sessionStart; }
-
-    function fmtTime(ms) {
-      const s = Math.floor(ms / 1000);
-      const m = Math.floor(s / 60);
-      return `${String(Math.floor(m)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
-    }
-
-    function driftScore() {
-      const switchP = Math.min(S.tabSwitches * 8, 30);
-      const idleP = Math.min(S.idlePeriods.length * 6, 25);
-      const scrollP = Math.min(S.rapidScrollCount * 4, 20);
-      const cpP = Math.min((S.copyCount + S.pasteCount) * 3, 15);
-      const botP = Math.min(S.suspiciousPatterns * 5, 10);
-      return Math.min(Math.round(switchP + idleP + scrollP + cpP + botP), 100);
-    }
 
     function scoreColor(s) {
       if (s <= 20) return 'var(--green)';
@@ -1584,8 +1671,7 @@
     // Init log
     log('click', 'FocusLens testbed ready · all signals active');
     log('idle', `Idle threshold: ${S.IDLE_THRESHOLD / 1000}s`);
-    log('scroll', `Rapid scroll threshold: ${S.RAPID_THRESHOLD} px/s`);
-  </script>
+
 </body>
 
 </html>

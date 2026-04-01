@@ -1,16 +1,17 @@
 {
     "name": "focuslens-extension",
     "version": "1.0.0",
-    "description": "FocusLens – Attention Drift Analyser (extension + Netlify functions)",
+    "description": "FocusLens – Attention Drift Analyser (extension + local MongoDB server)",
     "scripts": {
-        "dev": "netlify dev"
+        "start": "node server.js"
     },
     "dependencies": {
-        "mongodb": "^7.1.0",
+        "cors": "^2.8.6",
+        "dotenv": "^16.6.1",
+        "express": "^4.22.1",
+        "mongodb": "^7.1.1",
         "mongoose": "^8.2.4",
+        "node-cron": "^4.2.1",
         "zod": "^3.22.4"
-    },
-    "devDependencies": {
-        "netlify-cli": "^19.0.0"
     }
 }

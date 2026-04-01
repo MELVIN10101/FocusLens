@@ -201,31 +201,52 @@ function loadLive() {
     if (!tabs[0]) return;
     const tab = tabs[0];
 
+    // Skip non-injectable pages (chrome://, about:, extension pages, etc.)
+    const url = tab.url || '';
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      document.getElementById('live-content').innerHTML = `
+        <div class="no-data">
+          <div class="no-data-icon">🚫</div>
+          <div class="no-data-title">Not available here</div>
+          <div class="no-data-sub">Navigate to a regular web page to start tracking.</div>
+        </div>`;
+      stopLivePolling();
+      return;
+    }
+
     chrome.tabs.sendMessage(tab.id, { type: 'GET_SNAPSHOT' }, (resp) => {
       if (!chrome.runtime.lastError && resp) {
-        // Content script responded (normal web page)
+        // Content script responded — render stats
         renderLive(resp);
         return;
       }
 
-      // Content script not available (e.g. extension pages like dashboard.html,
-      // chrome:// pages, etc.) — fall back to background session data pushed
-      // by the dashboard's own pushSnapshot().
-      chrome.runtime.sendMessage({ type: 'GET_ACTIVE_SESSION' }, (res) => {
-        if (chrome.runtime.lastError || !res || !res.session) {
-          stopLivePolling();
-          document.getElementById('live-content').innerHTML = `
-            <div class="no-data">
-              <div class="no-data-icon">🕵️</div>
-              <div class="no-data-title">No data yet</div>
-              <div class="no-data-sub">Interact with the current page for a few seconds, then click Refresh.</div>
-              <button class="refresh-btn" id="refresh-btn">Refresh</button>
-            </div>`;
-          document.getElementById('refresh-btn')?.addEventListener('click', startLivePolling);
-          return;
+      // Content script not injected (tab was open before extension loaded).
+      // Inject it now, then retry once.
+      chrome.scripting.executeScript(
+        { target: { tabId: tab.id }, files: ['content.js'] },
+        () => {
+          if (chrome.runtime.lastError) {
+            // Page blocked injection (e.g. chrome store, PDFs, etc.)
+            document.getElementById('live-content').innerHTML = `
+              <div class="no-data">
+                <div class="no-data-icon">🚫</div>
+                <div class="no-data-title">Can't track this page</div>
+                <div class="no-data-sub">This page blocks extensions. Try a normal website.</div>
+              </div>`;
+            stopLivePolling();
+            return;
+          }
+          // Give content script a moment to initialise, then request snapshot
+          setTimeout(() => {
+            chrome.tabs.sendMessage(tab.id, { type: 'GET_SNAPSHOT' }, (resp2) => {
+              if (!chrome.runtime.lastError && resp2) {
+                renderLive(resp2);
+              }
+            });
+          }, 300);
         }
-        renderLive(res.session);
-      });
+      );
     });
   });
 }

@@ -1,23 +1,20 @@
 // ============================================================
 // FocusLens – Background Service Worker
 // Aggregates snapshots per tab, persists to chrome.storage,
-// and forwards each snapshot to the Netlify cloud backend.
+// and forwards each snapshot to the local MongoDB API server.
 // ============================================================
 
 const sessions = {}; // tabId → latest snapshot
 
-// ── Cloud sync ───────────────────────────────────────────────
-// Replace this with your actual Netlify site URL after deploying.
-// Example: 'https://focuslens.netlify.app'
-const NETLIFY_SITE = 'PLACEHOLDER_NETLIFY_URL';
-const API_URL = `${NETLIFY_SITE}/.netlify/functions/snapshots`;
+// ── Local API sync ──────────────────────────────────────────
+// Make sure the local server is running: node server.js
+const API_URL = 'http://localhost:3000/api/snapshots';
 
 /**
- * Fire-and-forget POST to the Netlify function.
- * Failures are silent – local storage remains the source of truth.
+ * Fire-and-forget POST to the local Express API.
+ * Failures are silent – chrome.storage remains the source of truth.
  */
-async function pushToCloud(payload) {
-  if (!NETLIFY_SITE || NETLIFY_SITE === 'PLACEHOLDER_NETLIFY_URL') return;
+async function pushToLocal(payload) {
   try {
     await fetch(API_URL, {
       method: 'POST',
@@ -25,7 +22,7 @@ async function pushToCloud(payload) {
       body: JSON.stringify(payload),
     });
   } catch (_) {
-    // Network error – silently ignored
+    // Server not running or network error – silently ignored
   }
 }
 
@@ -52,8 +49,8 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
       chrome.storage.local.set({ history, lastSession: sessions[tabId] });
     });
 
-    // Sync to cloud (fire-and-forget)
-    pushToCloud({ url: msg.url, ...msg.payload });
+    // Sync to local MongoDB server (fire-and-forget)
+    pushToLocal({ url: msg.url, ...msg.payload });
   }
 });
 
@@ -71,8 +68,8 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
         lastUpdated: msg.ts,
       };
 
-      // Sync to cloud
-      pushToCloud({ url: msg.url, ...msg.payload });
+      // Sync to local MongoDB server
+      pushToLocal({ url: msg.url, ...msg.payload });
     });
   }
 });
@@ -98,6 +95,14 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
 
   if (msg.type === 'CLEAR_HISTORY') {
     chrome.storage.local.set({ history: [] }, () => reply({ ok: true }));
+    return true;
+  }
+
+  if (msg.type === 'API_FETCH') {
+    fetch(`http://localhost:3000${msg.path}`)
+      .then(res => res.json())
+      .then(data => reply({ data }))
+      .catch(err => reply({ error: err.message }));
     return true;
   }
 });
