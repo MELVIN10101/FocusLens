@@ -141,6 +141,30 @@ app.get('/api/analytics/site', async (req, res) => {
     }
 });
 
+// Predictions from the Analytics collection
+app.get('/api/analytics/prediction', async (req, res) => {
+    try {
+        const { hostname } = req.query;
+        const filter = hostname ? { hostname } : {};
+        // Get the latest processed analytic for this site
+        const latest = await Analytics.findOne(filter).sort({ createdAt: -1 }).lean();
+        if (!latest) return res.json({ ok: false, message: 'No prediction data yet' });
+
+        return res.json({
+            ok: true,
+            hostname: latest.hostname,
+            currentDrift: latest.driftScore,
+            predictedDrift: latest.predictedDrift,
+            driftForecast: latest.driftForecast || [],
+            trend: latest.predictionTrend,
+            confidence: latest.confidence,
+            timestamp: latest.createdAt
+        });
+    } catch (err) {
+        return res.status(500).json({ error: err.message });
+    }
+});
+
 // ── GET /api/snapshots ──────────────────────────────────────
 app.get('/api/snapshots', async (req, res) => {
     const { hostname, limit } = req.query;

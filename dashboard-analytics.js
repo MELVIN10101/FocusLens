@@ -228,24 +228,29 @@ async function loadAnalytics() {
   const status = document.getElementById('analytics-status');
   status.textContent = 'Loading…';
   try {
+    let predRes = null;
     if (activeHostname) {
       // Per-site detailed load
-      const [siteRes, distRes, hostRes] = await Promise.all([
+      const [siteRes, distRes, hostRes, pRes] = await Promise.all([
         apiFetch('/api/analytics/site?hostname=' + encodeURIComponent(activeHostname)),
         apiFetch('/api/analytics/distribution' + qs),
         apiFetch('/api/analytics/hostname'),
+        apiFetch('/api/analytics/prediction?hostname=' + encodeURIComponent(activeHostname))
       ]);
+      predRes = pRes;
       renderSummary(siteRes.summary, activeHostname);
-      renderDriftChart((siteRes.snaps || []).reverse().map(s => ({ t: s.createdAt, drift: s.driftScore })));
+      renderDriftChart((siteRes.snaps || []).reverse().map(s => ({ t: s.createdAt, drift: s.driftScore })), predRes);
       renderHostChart(hostRes);
       renderDistChart(distRes);
     } else {
       // All-sites load
-      const [driftRes, hostRes, distRes] = await Promise.all([
+      const [driftRes, hostRes, distRes, pRes] = await Promise.all([
         apiFetch('/api/analytics/drift'),
         apiFetch('/api/analytics/hostname'),
         apiFetch('/api/analytics/distribution'),
+        apiFetch('/api/analytics/prediction') // all sites prediction
       ]);
+      predRes = pRes;
       // Build global summary from hostname agg
       const totalSnaps = hostRes.reduce((s, d) => s + (d.count || 0), 0);
       const avgDrift = hostRes.length
@@ -255,15 +260,128 @@ async function loadAnalytics() {
         totalSnaps ? { count: totalSnaps, avgDrift, avgIdleSec: null, avgTabSwitches: null, avgRapidScrolls: null, lastSeen: driftRes.length ? driftRes[driftRes.length - 1].t : null } : null,
         'all sites'
       );
-      renderDriftChart(driftRes);
+      renderDriftChart(driftRes, predRes);
       renderHostChart(hostRes);
       renderDistChart(distRes);
     }
+
+    // Update prediction UI
+    if (predRes && predRes.ok) {
+      document.getElementById('an-pred-drift').textContent = predRes.predictedDrift;
+      document.getElementById('an-pred-drift').style.color = driftColor(predRes.predictedDrift);
+      document.getElementById('an-pred-status').textContent = `Trend: ${predRes.trend.toUpperCase()} (${Math.round(predRes.confidence * 100)}% conf)`;
+      document.getElementById('an-pred-card').style.display = 'flex';
+      renderForecastChart(predRes.driftForecast, predRes.currentDrift);
+    } else {
+      document.getElementById('an-pred-card').style.display = 'none';
+      destroyChart('forecast');
+    }
+
     status.textContent = 'Updated ' + new Date().toLocaleTimeString();
   } catch (e) {
     status.textContent = '⚠ Server offline — is npm start running?';
     console.error('Analytics load failed:', e);
   }
+}
+
+// Update renderDriftChart to show prediction
+function renderDriftChart(data, prediction) {
+  destroyChart('drift');
+  if (!data.length) return;
+
+  const labels = data.map(d => new Date(d.t).toLocaleDateString() + ' ' + new Date(d.t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+  const driftPoints = data.map(d => d.drift);
+
+  const datasets = [{
+    label: 'Drift Score',
+    data: driftPoints,
+    borderColor: '#9b72ff',
+    backgroundColor: '#9b72ff18',
+    fill: true,
+    tension: 0.4,
+    pointRadius: data.length > 30 ? 0 : 3,
+    pointHoverRadius: 5,
+  }];
+
+  // Add prediction point if available
+  if (prediction && prediction.ok) {
+    labels.push('FORECAST (+5)');
+    // We add a point that starts from the last value and goes to predicted
+    const predData = new Array(driftPoints.length).fill(null);
+    predData[driftPoints.length - 1] = driftPoints[driftPoints.length - 1]; // Connect to last
+    predData.push(prediction.predictedDrift);
+
+    datasets.push({
+      label: 'Predicted',
+      data: predData,
+      borderColor: '#9b72ff',
+      borderDash: [5, 5],
+      backgroundColor: 'transparent',
+      pointRadius: 4,
+      pointStyle: 'star',
+      fill: false,
+      tension: 0
+    });
+  }
+
+  charts.drift = new Chart(document.getElementById('driftChart'), {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: datasets
+    },
+    options: {
+      responsive: true,
+      animation: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { display: false },
+        y: {
+          beginAtZero: true, max: 100, grid: { color: '#1e253520' },
+          ticks: { color: '#4a5675', font: { size: 10 } }
+        }
+      }
+    }
+  });
+}
+
+function renderForecastChart(forecast, currentScore) {
+  destroyChart('forecast');
+  if (!forecast || !forecast.length) return;
+
+  const displayData = [currentScore, ...forecast];
+  const displayLabels = ['Now', ...forecast.map((_, i) => `+${(i + 1) * 30}s`)];
+
+  charts.forecast = new Chart(document.getElementById('forecastChart'), {
+    type: 'line',
+    data: {
+      labels: displayLabels,
+      datasets: [{
+        label: 'Trend Forecast',
+        data: displayData,
+        borderColor: '#9b72ff',
+        backgroundColor: '#9b72ff15',
+        borderWidth: 2,
+        pointRadius: 4,
+        pointBackgroundColor: '#9b72ff',
+        fill: true,
+        tension: 0.4
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#4a5675', font: { size: 9 } }, grid: { color: '#1e253510' } },
+        y: {
+          beginAtZero: true, max: 100,
+          ticks: { color: '#4a5675', font: { size: 10 } },
+          grid: { color: '#1e253520' }
+        }
+      }
+    }
+  });
 }
 
 // loadAnalytics also updates connection status
@@ -283,52 +401,29 @@ let usingRealData = false;
 
 async function loadHighestDriftSignals() {
   try {
-    // Get hostname data sorted by avg drift
     const hostRes = await apiFetch('/api/analytics/hostname');
-    if (!hostRes || !hostRes.length) {
-      usingRealData = false;
-      return;
-    }
+    if (!hostRes || !hostRes.length) return;
 
-    // Find the site with highest avg drift
     const highestSite = hostRes.sort((a, b) => b.avgDrift - a.avgDrift)[0];
     const hostname = highestSite._id;
 
-    // Get detailed data for this site
     const siteRes = await apiFetch('/api/analytics/site?hostname=' + encodeURIComponent(hostname));
-    if (!siteRes || !siteRes.snaps || !siteRes.snaps.length) {
-      usingRealData = false;
-      return;
-    }
+    if (!siteRes || !siteRes.snaps || !siteRes.snaps.length) return;
 
-    highestDriftData = {
-      hostname,
-      avgDrift: highestSite.avgDrift,
-      snaps: siteRes.snaps
-    };
-
+    highestDriftData = { hostname, avgDrift: highestSite.avgDrift, snaps: siteRes.snaps };
     usingRealData = true;
 
-    // Update site label
-    document.getElementById('highest-site-label').textContent = `Data from: ${hostname} (highest drift: ${highestSite.avgDrift})`;
-
-    // Update signal displays with real data
+    document.getElementById('highest-site-label').textContent = `Top Drift: ${hostname}`;
     updateSignalsFromData(siteRes.snaps);
-
   } catch (e) {
     console.error('Failed to load highest drift signals:', e);
-    usingRealData = false;
-    document.getElementById('highest-site-label').textContent = 'No data available';
   }
 }
 
 function updateSignalsFromData(snaps) {
   if (!snaps || !snaps.length) return;
-
-  // Get the most recent snapshot
   const latest = snaps[snaps.length - 1];
 
-  // Update signal counters
   document.getElementById('sv-tabs').textContent = latest.tabSwitches || 0;
   document.getElementById('sv-idle').textContent = (latest.totalIdleSec || 0) + 's';
   document.getElementById('sv-scroll').textContent = latest.rapidScrollCount || 0;
@@ -336,9 +431,7 @@ function updateSignalsFromData(snaps) {
   document.getElementById('sv-copy').textContent = latest.copyCount || 0;
   document.getElementById('sv-paste').textContent = latest.pasteCount || 0;
   document.getElementById('sv-susp').textContent = latest.suspiciousPatterns || 0;
-  document.getElementById('sv-mouse').textContent = 'Real Data';
 
-  // Update drift score ring
   const score = latest.driftScore || 0;
   const ring = document.getElementById('ring-arc');
   const text = document.getElementById('drift-score');
@@ -349,65 +442,46 @@ function updateSignalsFromData(snaps) {
   text.textContent = score;
   text.style.color = driftColor(score);
 
-  // Update mouse trail with a pattern representing activity
   updateMouseTrailFromData(latest);
-
-  // Update scroll chart with recent scroll speeds
   updateScrollChartFromData(snaps);
 }
 
 function updateMouseTrailFromData(latest) {
   const canvas = document.getElementById('mouse-canvas');
+  if (!canvas) return;
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.strokeStyle = driftColor(latest.driftScore || 0);
   ctx.lineWidth = 3;
-  
-  // Draw a pattern based on activity levels
-  const activity = (latest.clickCount || 0) + (latest.copyCount || 0) + (latest.pasteCount || 0);
-  const points = Math.min(activity + 5, 20); // At least 5 points, max 20
-  
   ctx.beginPath();
-  for (let i = 0; i < points; i++) {
-    const x = (canvas.width / points) * i + Math.random() * 20 - 10;
-    const y = canvas.height / 2 + Math.sin(i * 0.5) * 30 + Math.random() * 20 - 10;
-    if (i === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
+  const activity = (latest.clickCount || 0) + 5;
+  for (let i = 0; i < activity; i++) {
+    const x = Math.random() * canvas.width;
+    const y = Math.random() * canvas.height;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
   }
   ctx.stroke();
 }
 
-function scoreLabel(s) {
-  if (s <= 20) return 'Focused';
-  if (s <= 45) return 'Mild Drift';
-  if (s <= 70) return 'Distracted';
-  return 'Critical Drift';
-}
-
 function updateScrollChartFromData(snaps) {
   const scrollChart = document.getElementById('scroll-chart');
-  const MAX_BARS = 30;
-
-  // Get recent rapid scroll counts
-  const recentScrolls = snaps.slice(-MAX_BARS).map(s => s.rapidScrollCount || 0);
-
+  if (!scrollChart) return;
+  const recentScrolls = snaps.slice(-20).map(s => s.rapidScrollCount || 0);
   scrollChart.innerHTML = '';
-  recentScrolls.forEach((count, i) => {
+  recentScrolls.forEach(count => {
     const bar = document.createElement('div');
     bar.className = 'chart-bar';
-    const height = Math.min(count * 10, 100); // Scale appropriately
-    bar.style.height = height + '%';
-    bar.title = count + ' rapid scrolls';
+    bar.style.height = Math.min(count * 10, 100) + '%';
+    bar.style.background = 'var(--purple)';
     scrollChart.appendChild(bar);
   });
 }
-
 // Initial load + periodic refresh
 loadSiteNav();
 loadAnalytics();
-loadHighestDriftSignals(); // Load highest drift signals initially
-setInterval(() => { 
-  loadSiteNav(); 
-  loadAnalytics(); 
-  loadHighestDriftSignals(); // Refresh highest drift signals
+loadHighestDriftSignals();
+setInterval(() => {
+  loadSiteNav();
+  loadAnalytics();
+  loadHighestDriftSignals();
 }, 10000);
